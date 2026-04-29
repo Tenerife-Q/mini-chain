@@ -1,6 +1,10 @@
+use sha2::{Digest, Sha256};
+use std::time::{SystemTime, UNIX_EPOCH};
+
 #[derive(Debug)]
 struct Block {
     index: u64,
+    timestamp: u64,
     data: String,
     pre_hash: String,
     hash: String,
@@ -34,12 +38,24 @@ impl Blockchain {
 
 impl Block {
     fn new(index: u64, data: String, pre_hash: String) -> Block {
-        let mock_hash = format!("{}-{}-{}", index, data, pre_hash);
+        let timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        let mock_hash = format!("{}{}{}{}", index, data, pre_hash, timestamp);
+        let mut hasher = Sha256::new();
+        hasher.update(mock_hash.as_bytes());
+        let hash_result = hasher.finalize();
+        let hash: String = hash_result
+            .iter()
+            .map(|byte| format!("{:02x}", byte))
+            .collect();
         Block {
             index,
+            timestamp,
             data,
             pre_hash,
-            hash: mock_hash,
+            hash,
         } 
     }
 }
