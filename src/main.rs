@@ -24,14 +24,33 @@ impl Blockchain {
         }
     }
 
+    // &mut self: 可变借用。我们需要修改（push）链条数组，但不能剥夺原区块链的所有权。
     fn add_block(&mut self, data: String) {
         let last_block = self.chain.last().unwrap();
         let new_block = Block::new(
             last_block.index + 1,
-            data,
-            last_block.hash.clone(),
+            data, // 所有权 Move (转移)：传入的 data 在这里无缝移交给了新区块，外部和此函数以后都不能再使用它。
+            last_block.hash.clone(), // Clone (深拷贝)：不能抢走老区块的 hash 所有权，否则老区块就残损了，必须复印一份给新区块。
         );
-        self.chain.push(new_block);
+        self.chain.push(new_block); // 所有权 Move (转移)：new_block 变量在此终结，它的所有权被塞进数组，由 Blockchain 结构体永久保管。
+    }
+
+    // &self: 不可变借用。防伪检查是“只读”操作，函数结束时归还所有权。如果写成 self，验证完区块链就会在内存中被销毁报错！
+    fn is_chain_valid(&self) -> bool {
+        for i in 1..self.chain.len() {
+            let current_block = &self.chain[i];
+            let previous_block = &self.chain[i - 1];
+            // 错误点在这里：原来写的是 current_block.hash != current_block.pre_hash
+            // 应该是：当前块的 pre_hash 必须等于 前一个块 的 hash！
+            if current_block.pre_hash != previous_block.hash {
+                return false;
+            }
+            // 校验自身数据是否被篡改
+            if current_block.hash != current_block.calculate_hash() {
+                return false;
+            }
+        }
+        true
     }
 }
 
@@ -68,6 +87,7 @@ impl Block {
 
     }
 
+    // &self: 不可变借用区块自身的字段用于计算。如果不用引用，区块在第一次算完哈希后就会灰飞烟灭。
     fn calculate_hash(&self) -> String {
         let mock_hash = format!(
             "{}{}{}{}",self.index, self.data, self.pre_hash, self.timestamp
@@ -92,4 +112,6 @@ fn main() {
 
 // // {:#?} 中的 # 意思是 "Pretty-print"（美化打印），它会自动帮你换行、缩进，看起来像 JSON。
 // format!("{:#?}", blockchain); 
+
+    println!("Is blockchain valid? {}", blockchain.is_chain_valid());
 }
