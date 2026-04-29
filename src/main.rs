@@ -106,6 +106,10 @@ fn main() {
     let mut blockchain = Blockchain::new(0, "Genesis Block".to_string(), "0".to_string());
     blockchain.add_block("Second_Block".to_string());
     blockchain.add_block("Third_Block".to_string());
+    //to_string() 是 Rust 中的一个方法，用于将字符串字面量转换为 String 类型。
+    //字符串字面量（例如 "Hello"）是不可变的字符串切片（&str），
+    //而 String 是一个可变的、拥有所有权的字符串类型。
+    //使用 to_string() 可以方便地将字符串字面量转换为 String，以便在需要 String 类型的地方使用。
     println!("{:#?}", blockchain);
 // // {:?} 是一行流打印，紧凑但可能很长
 // format!("{:?}", blockchain); 
