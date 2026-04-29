@@ -114,4 +114,23 @@ fn main() {
 // format!("{:#?}", blockchain); 
 
     println!("Is blockchain valid? {}", blockchain.is_chain_valid());
+
+    println!("Tampering with blockchain...");
+    blockchain.chain[1].data = "Hacked Data".to_string();
+    println!("Is blockchain valid after tampering? {}", blockchain.is_chain_valid());
+    println!("{:#?}", blockchain);
+
+
+    println!("Advanced Tampering with blockchain ...");
+    // 1. 高级黑客再次篡改数据
+    blockchain.chain[1].data = "Hacked Data again".to_string(); 
+    // 2. 重新计算该区块的哈希并覆盖老哈希，试图制造区块“内部自洽”来蒙混过关
+    blockchain.chain[1].hash = blockchain.chain[1].calculate_hash(); 
+    
+    // 尽管 chain[1] 内部看似合法，但为什么验证还是会返回 false？
+    // 因为 chain[2].pre_hash 里记录的是链条生成时的“旧哈希”！
+    // 我们的 is_chain_valid 遍历到 chain[2] 时，发现 chain[2].pre_hash 和刚刚被重写的 chain[1].hash 彻底对不上号了。
+    // 真正做到了“牵一发而动全身”，除非黑客把后续所有区块的哈希连带重算，否则必定断链。
+    println!("Is blockchain valid after rewriting hash self? {}", blockchain.is_chain_valid());
+    println!("{:#?}", blockchain);
 }
