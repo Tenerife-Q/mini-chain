@@ -1,2 +1,5 @@
 /target
-\n# Local blockchain storage\nblockchain_data.json\n*.json
+
+# Local blockchain storage
+blockchain_data.json
+*.json

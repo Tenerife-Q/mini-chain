@@ -3,6 +3,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use serde::{Deserialize, Serialize};
 use std::fs;
 
+const DIFFICULTY: usize = 2; // 先设置为2，表示哈希必须以 "00" 开头
+
 #[derive(Debug, Deserialize, Serialize)] // 让区块链结构体支持序列化和反序列化，方便保存和加载区块链数据。
 struct Block {
     index: u64,
@@ -10,6 +12,7 @@ struct Block {
     data: String,
     pre_hash: String,
     hash: String,
+    Nonce: u64,
 }
 
 #[derive(Debug, Deserialize, Serialize)]// #[derive(Debug)]是一个Rust的属性宏，
@@ -117,9 +120,15 @@ impl Block {
             timestamp,
             data,
             pre_hash,
-            hash: String::new(), // 先占位，后面计算hash
+            hash: String::new(), // 先给个空字符串占位
+            Nonce: 0,
         };
-        block.hash = block.calculate_hash();
+        // 【深入挖掘：从“计算一次”变成“疯狂计算”】
+        // 以前我们只调用一次 block.hash = block.calculate_hash(); 就完事了。
+        // 现在要满足工作量证明，我们直接让刚打包出来的区块调用自己的 mine 方法。
+        // 由于 mine 参数签名为 &mut self，此处会对刚生成一半的 block 进行原地疯狂开采。
+        // 只有开采出符合 DIFFICULTY 条件的哈希后，mine 方法才会结束，随后返回一个完全合法的 block 给调用者！
+        block.mine();
         block
 
     }
@@ -127,15 +136,29 @@ impl Block {
     // &self: 不可变借用区块自身的字段用于计算。如果不用引用，区块在第一次算完哈希后就会灰飞烟灭。
     fn calculate_hash(&self) -> String {
         let mock_hash = format!(
-            "{}{}{}{}",self.index, self.data, self.pre_hash, self.timestamp
+            "{}{}{}{}{}",self.index, self.data, self.pre_hash, self.timestamp, self.Nonce
         );
         let mut hasher = Sha256::new();
         hasher.update(mock_hash.as_bytes());
         let hash_result = hasher.finalize();
-        hash_result.
-            iter()
+        hash_result
+            .iter()
             .map(|byte| format!("{:02x}", byte))
             .collect()
+    }
+
+    pub fn mine(&mut self) {
+        let target = "0".repeat(DIFFICULTY);
+        // 【深入挖掘：切片与 starts_with 的安全性】
+        // 之前你写的 &self.hash[..DIFFICULTY] 如果 hash 长度不够（比如刚初始化为空字符串 String::new()）
+        // 程序就会发生 "out of bounds" （越界）导致直接崩溃！
+        // .starts_with() 则是 Rust 里的安全防线，就算字符串是空的，它也只会默默返回 false 而不崩溃。
+        while !self.hash.starts_with(&target) {
+            self.Nonce += 1;
+            // 因为 Nonce 变了，所以重新算一次哈希
+            self.hash = self.calculate_hash();
+        }
+        println!("Block {} mined !!! Nonce: {}, Hash: {}", self.index, self.Nonce, self.hash);
     }
 }
 
