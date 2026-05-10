@@ -16,9 +16,13 @@ pub struct Block {
 
 impl Block {
     pub fn new(index: u64, data: String, pre_hash: String) -> Self {
+        // 【消灭 unwrap 陷阱】：使用 unwrap_or_default() 替代 unwrap()
+        // 现实中服务器可能会发生“NTP时间回拨（NTP Sync Backwards）”，导致当前时间早于 UNIX_EPOCH。
+        // 如果用 unwrap() 我们的区块节点会直接崩溃闪退！
+        // 用 unwrap_or_default() 则是在遇到异常时温和地给个缺省值（0 秒），程序依然坚挺！
         let timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .unwrap()
+            .unwrap_or_default()
             .as_secs();
             
         let mut block = Block {
