@@ -24,7 +24,21 @@ fn main() {
     
     println!("Is blockchain valid after rewriting hash self? {}", blockchain.is_chain_valid());
 
-    blockchain.save_to_disk("blockchain_data.json");
-    let recovered_blockchain = Blockchain::load_from_disk("blockchain_data.json");
-    println!("Recovered Blockchain: {:#?}", recovered_blockchain);
+    // 【容错落地演示 1】：使用 if let 优雅捕捉 Result 这个盲盒里可能装的 Err
+    if let Err(e) = blockchain.save_to_disk("blockchain_data.json") {
+        println!("【节点告警】保存区块链到磁盘失败，原因：{}", e);
+    } else {
+        println!("区块链已成功落盘备份！不会因为写入权限问题导致节点崩溃。");
+    }
+
+    // 【容错落地演示 2】：使用经典的 match 分支拆分所有可能，模拟容错回滚
+    match Blockchain::load_from_disk("blockchain_bad_file.json") { // 这里故意放错一个文件名测试
+        Ok(recovered_blockchain) => {
+            println!("成功从磁盘恢复区块链！记录如下：\n{:#?}", recovered_blockchain);
+        }
+        Err(e) => {
+            // 如果现实中遇到黑客喂的假 JSON ，我们的节点坚挺存活，这里只会打印一句警告，然后可以重新同步别人的链！
+            println!("【致命节点抛弃】探测到损坏的文件或被修改的文件头！节点存活不受影响。错误信息：{}", e);
+        }
+    }
 }
