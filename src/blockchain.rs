@@ -3,7 +3,7 @@ use std::fs;
 // 同时它管辖着区块，所以也得向 block 模块借用
 use crate::block::Block;
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Blockchain {
     pub chain: Vec<Block>,
 }
