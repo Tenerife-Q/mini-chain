@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 pub const DIFFICULTY: usize = 2; // 先设置为2，表示哈希必须以 "00" 开头
 
-#[derive(Debug, Deserialize, Serialize)] // 让区块链结构体支持序列化和反序列化，方便保存和加载区块链数据。
+#[derive(Debug, Deserialize, Serialize, Clone)] // 让区块链结构体支持序列化和反序列化，方便保存和加载区块链数据。
 pub struct Block {
     pub index: u64,
     pub timestamp: u64,
