@@ -1,44 +1,52 @@
 mod block;
-mod blockchain; // 注册新模块
+mod blockchain;
 
-// 按需导入需要的东西
+use block::Block;
 use blockchain::Blockchain;
 
-fn main() {
-    let mut blockchain = Blockchain::new(0, "Genesis Block".to_string(), "0".to_string());
-    blockchain.add_block("Second_Block".to_string());
-    blockchain.add_block("Third_Block".to_string());
+use axum::{
+    routing::{get, post},
+    Router, Json, extract::State,
+};
+use std::sync::{Arc, Mutex};
+use serde::Deserialize;
 
-    println!("{:#?}", blockchain);
+#[derive(Deserialize)]
+struct MineRequest {
+    data: String,
+}
 
-    println!("Is blockchain valid? {}", blockchain.is_chain_valid());
+type SharedState = Arc<Mutex<Blockchain>>;
 
-    println!("Tampering with blockchain...");
-    // main 文件现在是调用层，但因为它引入了 Block，所以依然可以强行修改 Block 的内部字段进行黑客实验
-    blockchain.chain[1].data = "Hacked Data".to_string();
-    println!("Is blockchain valid after tampering? {}", blockchain.is_chain_valid());
+#[tokio::main]
+async fn main() {
+    println!("正在启动 PingCAP 级微型区块链分布式节点...");
 
-    println!("Advanced Tampering with blockchain ...");
-    blockchain.chain[1].data = "Hacked Data again".to_string(); 
-    blockchain.chain[1].hash = blockchain.chain[1].calculate_hash(); 
+    let blockchain = Blockchain::new(0, "Genesis Block".to_string(), "0".to_string());
     
-    println!("Is blockchain valid after rewriting hash self? {}", blockchain.is_chain_valid());
+    let shared_state: SharedState = Arc::new(Mutex::new(blockchain));
 
-    // 【容错落地演示 1】：使用 if let 优雅捕捉 Result 这个盲盒里可能装的 Err
-    if let Err(e) = blockchain.save_to_disk("blockchain_data.json") {
-        println!("【节点告警】保存区块链到磁盘失败，原因：{}", e);
-    } else {
-        println!("区块链已成功落盘备份！不会因为写入权限问题导致节点崩溃。");
-    }
+    let app = Router::new()
+        .route("/chain", get(get_chain))
+        .route("/mine", post(mine_block))
+        .with_state(shared_state);
 
-    // 【容错落地演示 2】：使用经典的 match 分支拆分所有可能，模拟容错回滚
-    match Blockchain::load_from_disk("blockchain_bad_file.json") { // 这里故意放错一个文件名测试
-        Ok(recovered_blockchain) => {
-            println!("成功从磁盘恢复区块链！记录如下：\n{:#?}", recovered_blockchain);
-        }
-        Err(e) => {
-            // 如果现实中遇到黑客喂的假 JSON ，我们的节点坚挺存活，这里只会打印一句警告，然后可以重新同步别人的链！
-            println!("【致命节点抛弃】探测到损坏的文件或被修改的文件头！节点存活不受影响。错误信息：{}", e);
-        }
-    }
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:8000").await.unwrap();
+    println!("节点已启动！请打开浏览器访问 http://localhost:8000/chain");
+    
+    axum::serve(listener, app).await.unwrap();
+}
+
+async fn get_chain(State(state): State<SharedState>) -> Json<Blockchain> {
+    let chain_data = state.lock().unwrap().clone();
+    Json(chain_data)
+}
+
+async fn mine_block(
+    State(state): State<SharedState>,
+    Json(payload): Json<MineRequest>,
+) -> String {
+    let mut chain = state.lock().unwrap();
+    chain.add_block(payload.data);
+    "挖矿完成！新区块已被矿工确认并加入网络。\n".to_string()
 }
